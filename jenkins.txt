@@ -1,0 +1,25 @@
+node{
+       stage('git clone'){
+          git branch: 'main', credentialsId: 'git-credentials', url: 'https://github.com/mounikainfo/maven-app.git'
+        }
+       stage('build code'){
+         def mavenHome = tool name: "Maven-3.8.6", type: "maven"
+          def mavenCMD = "${mavenHome}/bin/mvn"
+         sh "${mavenCMD} clean package"
+       }
+        stage('code review'){
+            withSonarQubeEnv('sonar-server-7.8') {
+               def mavenHome = tool name: "Maven-3.8.6", type: "maven"
+             def mavenCMD = "${mavenHome}/bin/mvn"
+              sh "${mavenCMD} clean package"  
+            }
+        }
+        stage('artifact store'){
+          nexusArtifactUploader artifacts: [[artifactId: '01-Maven-App', classifier: '', file: 'target/01-Maven-App.war', type: 'war']], credentialsId: 'nexus-credentials', groupId: 'in.ashokit', nexusUrl: '35.154.190.187:8081', nexusVersion: 'nexus3', protocol: 'http', repository: 'mouni-snapshot-repo', version: '1.0-SNAPSHOT'
+        }
+        stage('deploy code'){
+                   sshagent(['Tom-EC2-Credentials']) {
+                       sh 'scp -o StrictHostKeyChecking=no target/01-Maven-App.war ec2-user@3.111.168.194:/home/ec2-user/apache-tomcat-10.0.27/webapps'
+                   }
+        }
+}
